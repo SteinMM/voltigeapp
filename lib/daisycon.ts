@@ -1,6 +1,8 @@
 import crypto from "crypto";
 
-export const PUBLISHER_ID = "419930";
+// 419930 is de media/website ID (uit wi= in trackinglinks).
+// De publisher ID is een ander nummer dat we via de API ophalen.
+export const MEDIA_ID = "419930";
 export const AUTH_URL = "https://login.daisycon.com/oauth/authorize";
 export const TOKEN_URL = "https://login.daisycon.com/oauth/access-token";
 export const API_BASE = "https://services.daisycon.com";
@@ -43,38 +45,58 @@ export async function exchangeCodeForToken(
   return JSON.parse(text) as { access_token: string; refresh_token?: string; expires_in?: number };
 }
 
-export async function fetchSubscriptions(accessToken: string) {
+/** Haalt de publisher accounts op die bij deze OAuth token horen. */
+export async function fetchPublishers(accessToken: string) {
+  const res = await fetch(`${API_BASE}/publishers`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`Publishers failed: ${await res.text()}`);
+  return res.json() as Promise<DaisyconPublisher[]>;
+}
+
+export async function fetchSubscriptions(accessToken: string, publisherId: number) {
   const res = await fetch(
-    `${API_BASE}/publishers/${PUBLISHER_ID}/subscriptions?filter_subscription_status=approved`,
+    `${API_BASE}/publishers/${publisherId}/subscriptions?filter_subscription_status=approved&paginator_per=100`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!res.ok) throw new Error(`Subscriptions failed: ${await res.text()}`);
   return res.json() as Promise<DaisyconSubscription[]>;
 }
 
-export async function fetchMaterialAds(accessToken: string, programId?: string) {
+export async function fetchMaterialAds(
+  accessToken: string,
+  publisherId: number,
+  programId?: string
+) {
   const params = new URLSearchParams({
     filter_subscribed_only: "true",
-    placeholder_url_media_id: PUBLISHER_ID,
+    placeholder_url_media_id: MEDIA_ID,
     paginator_per: "100",
   });
   if (programId) params.set("filter_program_ids", programId);
 
   const res = await fetch(
-    `${API_BASE}/publishers/${PUBLISHER_ID}/material/ads?${params}`,
+    `${API_BASE}/publishers/${publisherId}/material/ads?${params}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!res.ok) throw new Error(`Material ads failed: ${await res.text()}`);
   return res.json() as Promise<DaisyconAd[]>;
 }
 
-export async function fetchPrograms(accessToken: string) {
+export async function fetchPrograms(accessToken: string, publisherId: number) {
   const res = await fetch(
-    `${API_BASE}/publishers/${PUBLISHER_ID}/programs?paginator_per=100`,
+    `${API_BASE}/publishers/${publisherId}/programs?paginator_per=100`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!res.ok) throw new Error(`Programs failed: ${await res.text()}`);
   return res.json() as Promise<DaisyconProgram[]>;
+}
+
+export interface DaisyconPublisher {
+  id: number;
+  name: string;
+  email?: string;
+  status?: string;
 }
 
 export interface DaisyconSubscription {
