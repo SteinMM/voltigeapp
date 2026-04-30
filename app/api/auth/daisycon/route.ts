@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
 
   const params = new URLSearchParams({
     response_type: "code",
-    client_id: process.env.DAISYCON_CLIENT_ID!,
+    client_id: (process.env.DAISYCON_CLIENT_ID ?? "").trim(),
     redirect_uri: getRedirectUri(request.url),
     code_challenge: challenge,
     code_challenge_method: "S256",

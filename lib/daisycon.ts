@@ -32,7 +32,7 @@ export async function exchangeCodeForToken(
     body: JSON.stringify({
       grant_type: "authorization_code",
       code,
-      client_id: process.env.DAISYCON_CLIENT_ID!,
+      client_id: (process.env.DAISYCON_CLIENT_ID ?? "").trim(),
       client_secret: "",
       redirect_uri: redirectUri,
       code_verifier: verifier,
