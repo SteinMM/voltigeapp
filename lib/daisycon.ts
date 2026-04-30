@@ -24,20 +24,28 @@ export async function exchangeCodeForToken(
   verifier: string,
   redirectUri: string
 ) {
+  const clientId = process.env.DAISYCON_CLIENT_ID!;
+  const clientSecret = process.env.DAISYCON_CLIENT_SECRET!;
+
+  // Daisycon vereist credentials als HTTP Basic Auth header
+  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+
   const res = await fetch(TOKEN_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${basicAuth}`,
+    },
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,
-      client_id: process.env.DAISYCON_CLIENT_ID!,
-      client_secret: process.env.DAISYCON_CLIENT_SECRET!,
+      client_id: clientId,
       redirect_uri: redirectUri,
       code_verifier: verifier,
     }),
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`Token exchange failed: ${text}`);
+  if (!res.ok) throw new Error(`Token exchange failed (${res.status}): ${text}`);
   return JSON.parse(text) as { access_token: string; refresh_token?: string; expires_in?: number };
 }
 

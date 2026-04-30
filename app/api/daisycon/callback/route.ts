@@ -43,7 +43,10 @@ export async function GET(request: NextRequest) {
     response.cookies.delete("daisycon_pkce_verifier");
     return response;
   } catch (err) {
-    console.error("Daisycon token exchange error:", err);
-    return NextResponse.redirect(new URL("/admin?error=token_failed", request.url));
+    const msg = err instanceof Error ? err.message : "unknown";
+    console.error("Daisycon token exchange error:", msg);
+    // Stuur de volledige foutmelding mee zodat we kunnen debuggen
+    const encoded = encodeURIComponent(msg.slice(0, 200));
+    return NextResponse.redirect(new URL(`/admin?error=${encoded}`, request.url));
   }
 }
