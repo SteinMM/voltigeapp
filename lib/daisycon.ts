@@ -24,22 +24,16 @@ export async function exchangeCodeForToken(
   verifier: string,
   redirectUri: string
 ) {
-  const clientId = process.env.DAISYCON_CLIENT_ID!;
-  const clientSecret = process.env.DAISYCON_CLIENT_SECRET!;
-
-  // Daisycon vereist credentials als HTTP Basic Auth header
-  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-
+  // Daisycon PKCE browser flow: client_secret moet leeg zijn maar wel aanwezig in body.
+  // Bron: github.com/DaisyconBV/oauth-examples/Javascript/example.js
   const res = await fetch(TOKEN_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${basicAuth}`,
-    },
-    body: new URLSearchParams({
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
       grant_type: "authorization_code",
       code,
-      client_id: clientId,
+      client_id: process.env.DAISYCON_CLIENT_ID!,
+      client_secret: "",
       redirect_uri: redirectUri,
       code_verifier: verifier,
     }),

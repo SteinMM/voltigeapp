@@ -1,7 +1,10 @@
-import { partners } from "@/lib/partners";
+import { getPartners } from "@/lib/storage";
 import { PartnersClient } from "@/components/PartnersClient";
 
-export default function HomePage() {
+export const revalidate = 60; // herlaad max elke 60s
+
+export default async function HomePage() {
+  const { partners, source } = await getPartners();
   return (
     <div className="flex flex-col min-h-screen max-w-lg mx-auto">
       {/* Header */}
@@ -40,6 +43,9 @@ export default function HomePage() {
         <strong className="text-gray-500">Voltigevereniging De Wittegheit</strong>.
         <br />
         Affiliate links via Daisycon · Publisher ID 419930
+        {source === "seed" && (
+          <span className="block mt-1 text-amber-500">⚠️ Demo data — sync via /admin</span>
+        )}
       </footer>
     </div>
   );

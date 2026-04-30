@@ -11,13 +11,22 @@ interface SyncResult {
   error?: string;
 }
 
+interface SaveResult {
+  ok?: boolean;
+  count?: number;
+  url?: string;
+  error?: string;
+}
+
 function AdminContent() {
   const searchParams = useSearchParams();
   const connected = searchParams.get("connected") === "1";
   const authError = searchParams.get("error");
 
   const [syncing, setSyncing] = useState(false);
-  const [result, setResult] = useState<SyncResult | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [saveResult, setSaveResult] = useState<SaveResult | null>(null);
   const [copied, setCopied] = useState(false);
 
   // Auto-sync na succesvolle OAuth
@@ -28,24 +37,46 @@ function AdminContent() {
 
   async function handleSync() {
     setSyncing(true);
-    setResult(null);
+    setSyncResult(null);
+    setSaveResult(null);
     try {
       const res = await fetch("/api/daisycon/sync");
       const data = await res.json();
-      setResult(data);
+      setSyncResult(data);
     } catch {
-      setResult({ error: "Netwerk fout bij sync" });
+      setSyncResult({ error: "Netwerk fout bij sync" });
     } finally {
       setSyncing(false);
     }
   }
 
+  async function handleSave() {
+    if (!syncResult?.partners) return;
+    setSaving(true);
+    setSaveResult(null);
+    try {
+      const res = await fetch("/api/partners/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partners: syncResult.partners }),
+      });
+      const data = await res.json();
+      setSaveResult(data);
+    } catch {
+      setSaveResult({ error: "Netwerk fout bij opslaan" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function copyJson() {
-    if (!result?.partners) return;
-    await navigator.clipboard.writeText(JSON.stringify(result.partners, null, 2));
+    if (!syncResult?.partners) return;
+    await navigator.clipboard.writeText(JSON.stringify(syncResult.partners, null, 2));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
+
+  const hasPartners = syncResult?.partners && syncResult.partners.length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50 max-w-lg mx-auto">
@@ -60,8 +91,8 @@ function AdminContent() {
       <div className="p-4 flex flex-col gap-4">
         {/* Status banner */}
         {authError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
-            <strong>Fout:</strong> {authError}. Probeer opnieuw te koppelen.
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700 break-words">
+            <strong>Fout bij koppelen:</strong> {decodeURIComponent(authError)}
           </div>
         )}
         {connected && !authError && (
@@ -70,11 +101,11 @@ function AdminContent() {
           </div>
         )}
 
-        {/* Koppel Daisycon */}
+        {/* Stap 1: Koppel Daisycon */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <h2 className="font-semibold text-sm text-gray-800 mb-1">Stap 1 — Koppel Daisycon</h2>
           <p className="text-xs text-gray-500 mb-3">
-            Log in met je Daisycon-account om toegang te geven. Je wordt teruggestuurd naar deze pagina.
+            Log in met je Daisycon-account om toegang te geven.
           </p>
           <a
             href="/api/auth/daisycon"
@@ -84,9 +115,9 @@ function AdminContent() {
           </a>
         </div>
 
-        {/* Sync */}
+        {/* Stap 2: Sync */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <h2 className="font-semibold text-sm text-gray-800 mb-1">Stap 2 — Sync partners</h2>
+          <h2 className="font-semibold text-sm text-gray-800 mb-1">Stap 2 — Haal partners op</h2>
           <p className="text-xs text-gray-500 mb-3">
             Haalt alle goedgekeurde adverteerders op inclusief hun affiliate trackinglink.
           </p>
@@ -99,14 +130,41 @@ function AdminContent() {
           </button>
         </div>
 
-        {/* Resultaten */}
-        {result && (
+        {/* Stap 3: Save to Live (alleen tonen als sync gelukt is) */}
+        {hasPartners && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            {result.error ? (
+            <h2 className="font-semibold text-sm text-gray-800 mb-1">Stap 3 — Publiceer naar app</h2>
+            <p className="text-xs text-gray-500 mb-3">
+              Slaat de {syncResult.total} partners op in Vercel Blob. De homepage wordt direct bijgewerkt.
+            </p>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full bg-amber-600 text-white text-sm font-medium py-2.5 rounded-xl hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {saving ? "Bezig met opslaan…" : "Publiceer naar live app"}
+            </button>
+            {saveResult?.ok && (
+              <div className="mt-3 p-2 bg-green-50 border border-green-100 rounded-lg text-xs text-green-700">
+                ✓ {saveResult.count} partners opgeslagen. <a href="/" className="underline font-medium">Bekijk de app →</a>
+              </div>
+            )}
+            {saveResult?.error && (
+              <div className="mt-3 p-2 bg-red-50 border border-red-100 rounded-lg text-xs text-red-700">
+                Opslaan mislukt: {saveResult.error}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Resultaten */}
+        {syncResult && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            {syncResult.error ? (
               <div>
                 <h2 className="font-semibold text-sm text-red-700 mb-1">Fout bij sync</h2>
-                <p className="text-xs text-red-600 font-mono break-all">{result.error}</p>
-                {result.error.includes("not_authenticated") && (
+                <p className="text-xs text-red-600 font-mono break-all">{syncResult.error}</p>
+                {syncResult.error.includes("not_authenticated") && (
                   <p className="text-xs text-gray-500 mt-2">
                     Token verlopen — koppel Daisycon opnieuw via stap 1.
                   </p>
@@ -116,7 +174,7 @@ function AdminContent() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="font-semibold text-sm text-gray-800">
-                    {result.total} partners gevonden
+                    {syncResult.total} partners gevonden
                   </h2>
                   <button
                     onClick={copyJson}
@@ -126,14 +184,8 @@ function AdminContent() {
                   </button>
                 </div>
 
-                <p className="text-xs text-gray-500 mb-3">
-                  Kopieer de JSON en plak die in{" "}
-                  <code className="font-mono bg-gray-100 px-1 rounded">lib/partners.ts</code>{" "}
-                  om de affiliate links bij te werken.
-                </p>
-
-                <div className="flex flex-col gap-2">
-                  {result.partners?.map((p) => (
+                <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
+                  {syncResult.partners?.map((p) => (
                     <div
                       key={p.id}
                       className="flex items-start justify-between gap-2 py-2 border-b border-gray-50 last:border-0"
