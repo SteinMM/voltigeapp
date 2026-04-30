@@ -70,6 +70,7 @@ export async function fetchMaterialAds(
 ) {
   const params = new URLSearchParams({
     filter_subscribed_only: "true",
+    filter_media_id: MEDIA_ID,
     placeholder_url_media_id: MEDIA_ID,
     paginator_per: "100",
   });
